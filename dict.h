@@ -31,13 +31,11 @@ void *dictset(dict *d, char *k, void *v);
 void *dictget(dict *d, char *k);
 // Get a value for a given key, or NULL if no value found.
 
-unsigned int dictsize(dict *d);
-// Get the number of values stored in the dictionary.
-
-void dictvals(dict *d, void **v);
+unsigned int dictvals(dict *d, void **v);
 // Get all values stored in the dictionary using a buffer. Behavior is
-// undefined if the buffer is too small (use dictsize to allocate a buffer of
-// the appropriate size.)
+// undefined if the buffer is too small. Return the size (value count) of the
+// dictionary. To get the size of the dictionary without actually getting the
+// values, pass NULL instead of a buffer.
 
 #endif // DICT_H
 
@@ -65,9 +63,7 @@ void dictfree(dict *d)
     struct dict *s = (struct dict*)d;
     for (size_t i = 0; i < s->n; ++i)
         dictfree(&s->c[i]);
-    free(s->c);
-    if(s->k)
-        free(s);
+    if (s->n) free(s->c);
 }
 
 void *dictset(dict *d, char *k, void *v)
@@ -114,31 +110,20 @@ void *dictget(dict *d, char *k)
     return s->v;
 }
 
-unsigned int dictsize(dict *d)
+unsigned int dictvals(dict *d, void **v)
 {
     struct dict *s = (struct dict*)d;
-    int accum = s->v ? 1 : 0;
+    int accum = 0;
+    if (s->v) {
+        if (v) *v++ = s->v;
+        ++accum;
+    }
     for (size_t i = 0; i < s->n; ++i) {
-        if (s->c[i].v)
-            ++accum;
-        accum = accum + dictsize(&s->c[i]);
+        unsigned int offset = dictvals(&s->c[i], v);
+        if (v) v = v + offset;
+        accum = accum + offset;
     }
     return accum;
-}
-
-void dictvals(dict *d, void **v)
-{
-    // TBD
-}
-
-void dictprn(dict *d, int indent)
-{
-    struct dict *s = (struct dict*)d;
-    for(size_t i = 0; i < indent; ++i)
-        printf(" ");
-    printf("%c\n", s->k);
-    for(size_t i = 0; i < s->n; ++i)
-        dictprn(&s->c[i], indent+1);
 }
 
 #endif // DICT_IMPL
